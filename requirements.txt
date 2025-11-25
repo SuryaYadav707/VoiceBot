@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+websockets
+deepgram-sdk
+google-generativeai
+langchain
+numpy
+python-multipart

@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interview Voice Bot</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        .container {
+            width: 95%;
+            max-width: 900px;
+            height: 95vh;
+            background: white;
+            border-radius: 24px;
+            box-shadow: 0 25px 70px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .header {
+            padding: 24px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 26px;
+            font-weight: 700;
+        }
+
+        .header-info {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .chat-area {
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            background: #f8f9fa;
+        }
+
+        .chat-area::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .chat-area::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        .chat-area::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+
+        .message {
+            padding: 14px 20px;
+            border-radius: 16px;
+            max-width: 75%;
+            word-wrap: break-word;
+            line-height: 1.5;
+            animation: slideIn 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(12px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .user-message {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            align-self: flex-end;
+            margin-left: auto;
+        }
+
+        .assistant-message {
+            background: white;
+            color: #2c3e50;
+            align-self: flex-start;
+            border: 1px solid #e0e0e0;
+        }
+
+        .interim-message {
+            background: #e8eaf6;
+            color: #5c6bc0;
+            align-self: flex-start;
+            font-style: italic;
+            opacity: 0.85;
+            border: 1px dashed #9fa8da;
+        }
+
+        .input-area {
+            padding: 20px 24px;
+            border-top: 1px solid #e0e0e0;
+            background: white;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .text-input {
+            flex: 1;
+            padding: 14px 18px;
+            border: 2px solid #e0e0e0;
+            border-radius: 24px;
+            font-size: 15px;
+            outline: none;
+            transition: all 0.3s ease;
+            font-family: inherit;
+        }
+
+        .text-input:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .mic-button {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            border: none;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .mic-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 16px rgba(102, 126, 234, 0.5);
+        }
+
+        .mic-button:active {
+            transform: scale(0.95);
+        }
+
+        .mic-button.recording {
+            background: linear-gradient(135deg, #f44336 0%, #e91e63 100%);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+                box-shadow: 0 4px 12px rgba(244, 67, 54, 0.4);
+            }
+            50% {
+                transform: scale(1.08);
+                box-shadow: 0 6px 20px rgba(244, 67, 54, 0.6);
+            }
+        }
+
+        .send-button {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            border: none;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .send-button:hover {
+            transform: scale(1.05);
+        }
+
+        .send-button:active {
+            transform: scale(0.95);
+        }
+
+        .status {
+            padding: 12px 20px;
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+            background: white;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .status.listening {
+            color: #4CAF50;
+            font-weight: 600;
+        }
+
+        .status.processing {
+            color: #FF9800;
+            font-weight: 600;
+        }
+
+        .status.speaking {
+            color: #2196F3;
+            font-weight: 600;
+        }
+
+        .clear-button {
+            padding: 8px 16px;
+            border-radius: 20px;
+            border: 2px solid white;
+            background: transparent;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 13px;
+        }
+
+        .clear-button:hover {
+            background: white;
+            color: #667eea;
+        }
+
+        .typing-indicator {
+            display: flex;
+            gap: 4px;
+            padding: 16px 20px;
+            background: white;
+            border-radius: 16px;
+            align-self: flex-start;
+            max-width: 75px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #667eea;
+            animation: typingAnimation 1.4s infinite;
+        }
+
+        .typing-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typingAnimation {
+            0%, 60%, 100% {
+                transform: translateY(0);
+                opacity: 0.7;
+            }
+            30% {
+                transform: translateY(-10px);
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>🎙️ Interview Voice Bot</h1>
+                <div class="header-info">Ask me anything about my background and experience</div>
+            </div>
+            <button class="clear-button" id="clearButton">Clear Chat</button>
+        </div>
+        
+        <div class="chat-area" id="chatArea">
+            <div class="assistant-message">
+                Hi! I'm ready to answer your interview questions. You can either type your question or click the microphone to ask via voice. 🎤
+            </div>
+        </div>
+        
+        <div class="status" id="status">Type a question or click the mic to speak</div>
+        
+        <div class="input-area">
+            <input 
+                type="text" 
+                class="text-input" 
+                id="textInput" 
+                placeholder="Type your question here..."
+                autocomplete="off"
+            />
+            <button class="send-button" id="sendButton">
+                ➤
+            </button>
+            <button class="mic-button" id="micButton">
+                🎤
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        let websocket = null;
+        let audioContext = null;
+        let processor = null;
+        let stream = null;
+        let isRecording = false;
+        let currentInterimElement = null;
+        let typingIndicator = null;
+
+        const chatArea = document.getElementById('chatArea');
+        const micButton = document.getElementById('micButton');
+        const sendButton = document.getElementById('sendButton');
+        const textInput = document.getElementById('textInput');
+        const clearButton = document.getElementById('clearButton');
+        const statusDiv = document.getElementById('status');
+
+        // Text-to-Speech with synchronized text display
+        const synth = window.speechSynthesis;
+        let currentUtterance = null;
+        let isSpeaking = false;
+        let sentenceBuffer = '';
+        let bufferTimeout = null;
+        let currentAssistantMessage = null;
+        let fullResponseText = '';
+        let displayedText = '';
+        let textQueue = [];
+        let displayInterval = null;
+
+        function displayTextWordByWord() {
+            if (displayInterval) return; // Already displaying
+            
+            displayInterval = setInterval(() => {
+                if (textQueue.length > 0) {
+                    const word = textQueue.shift();
+                    displayedText += word;
+                    
+                    if (currentAssistantMessage) {
+                        currentAssistantMessage.textContent = displayedText;
+                        chatArea.scrollTop = chatArea.scrollHeight;
+                    }
+                } else if (!isSpeaking && textQueue.length === 0) {
+                    // Stop displaying when speech is done and queue is empty
+                    clearInterval(displayInterval);
+                    displayInterval = null;
+                }
+            }, 80); // Display a word every 80ms
+        }
+
+        function speakSentence(text) {
+            if (!text.trim()) return;
+            
+            isSpeaking = true;
+            
+            // Split text into words and add to display queue
+            const words = text.split(/(\s+)/); // Keep spaces
+            textQueue.push(...words);
+            
+            // Start displaying if not already
+            displayTextWordByWord();
+            
+            currentUtterance = new SpeechSynthesisUtterance(text);
+            currentUtterance.rate = 1.0;
+            currentUtterance.pitch = 1.0;
+            currentUtterance.volume = 1.0;
+            
+            currentUtterance.onend = () => {
+                isSpeaking = false;
+                if (textQueue.length === 0 && !sentenceBuffer.trim()) {
+                    updateStatus('Type a question or click the mic to speak', '');
+                }
+            };
+            
+            currentUtterance.onerror = () => {
+                isSpeaking = false;
+                if (textQueue.length === 0 && !sentenceBuffer.trim()) {
+                    updateStatus('Type a question or click the mic to speak', '');
+                }
+            };
+            
+            synth.speak(currentUtterance);
+            updateStatus('🔊 Speaking...', 'speaking');
+        }
+
+        function bufferAndSpeak(chunk) {
+            // Add to full response text
+            fullResponseText += chunk;
+            
+            // Create message element if not exists
+            if (!currentAssistantMessage) {
+                currentAssistantMessage = addMessage('', 'assistant');
+            }
+            
+            // Add chunk to speech buffer
+            sentenceBuffer += chunk;
+            
+            // Clear existing timeout
+            if (bufferTimeout) {
+                clearTimeout(bufferTimeout);
+            }
+            
+            // Check if we have a complete sentence (ends with . ! ? or has multiple sentences)
+            const sentenceEnders = /[.!?]\s*$/;
+            
+            if (sentenceEnders.test(sentenceBuffer.trim())) {
+                // We have a complete sentence, speak it
+                const toSpeak = sentenceBuffer.trim();
+                sentenceBuffer = '';
+                speakSentence(toSpeak);
+            } else {
+                // Wait a bit more for the sentence to complete
+                bufferTimeout = setTimeout(() => {
+                    if (sentenceBuffer.trim()) {
+                        speakSentence(sentenceBuffer.trim());
+                        sentenceBuffer = '';
+                    }
+                }, 800); // Wait 800ms for more chunks
+            }
+        }
+
+        function stopSpeaking() {
+            synth.cancel();
+            isSpeaking = false;
+            sentenceBuffer = '';
+            fullResponseText = '';
+            displayedText = '';
+            textQueue = [];
+            currentAssistantMessage = null;
+            
+            if (bufferTimeout) {
+                clearTimeout(bufferTimeout);
+                bufferTimeout = null;
+            }
+            
+            if (displayInterval) {
+                clearInterval(displayInterval);
+                displayInterval = null;
+            }
+        }
+
+        function addMessage(text, type) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}-message`;
+            messageDiv.textContent = text;
+            chatArea.appendChild(messageDiv);
+            chatArea.scrollTop = chatArea.scrollHeight;
+            return messageDiv;
+        }
+
+        function showTypingIndicator() {
+            if (typingIndicator) return;
+            typingIndicator = document.createElement('div');
+            typingIndicator.className = 'typing-indicator';
+            typingIndicator.innerHTML = '<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>';
+            chatArea.appendChild(typingIndicator);
+            chatArea.scrollTop = chatArea.scrollHeight;
+        }
+
+        function hideTypingIndicator() {
+            if (typingIndicator) {
+                typingIndicator.remove();
+                typingIndicator = null;
+            }
+        }
+
+        function updateStatus(text, className = '') {
+            statusDiv.textContent = text;
+            statusDiv.className = 'status ' + className;
+        }
+
+        function connectWebSocket() {
+            return new Promise((resolve, reject) => {
+                websocket = new WebSocket(`ws://localhost:8000/ws/voice-bot/${sessionId}`);
+                
+                websocket.onopen = () => {
+                    console.log('✅ WebSocket connected');
+                    resolve();
+                };
+
+                websocket.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    
+                    if (data.type === 'interim_transcript') {
+                        if (!currentInterimElement) {
+                            currentInterimElement = addMessage(data.text, 'interim');
+                        } else {
+                            currentInterimElement.textContent = data.text;
+                        }
+                        chatArea.scrollTop = chatArea.scrollHeight;
+                    } 
+                    else if (data.type === 'user_message') {
+                        if (currentInterimElement) {
+                            currentInterimElement.remove();
+                            currentInterimElement = null;
+                        }
+                        addMessage(data.text, 'user');
+                        showTypingIndicator();
+                        updateStatus('🤔 Thinking...', 'processing');
+                        stopSpeaking();
+                        
+                        // Reset for new response
+                        fullResponseText = '';
+                        displayedText = '';
+                        currentAssistantMessage = null;
+                    } 
+                    else if (data.type === 'assistant_chunk') {
+                        hideTypingIndicator();
+                        bufferAndSpeak(data.text);
+                    } 
+                    else if (data.type === 'assistant_complete') {
+                        hideTypingIndicator();
+                        
+                        // Speak any remaining buffered text
+                        if (sentenceBuffer.trim()) {
+                            speakSentence(sentenceBuffer.trim());
+                            sentenceBuffer = '';
+                        }
+                        
+                        // Wait for all text to be displayed before resetting
+                        const checkComplete = setInterval(() => {
+                            if (textQueue.length === 0 && !isSpeaking) {
+                                clearInterval(checkComplete);
+                                fullResponseText = '';
+                                displayedText = '';
+                                currentAssistantMessage = null;
+                            }
+                        }, 100);
+                    }
+                    else if (data.type === 'error') {
+                        hideTypingIndicator();
+                        console.error('Error:', data.message);
+                        addMessage(data.message, 'assistant');
+                        updateStatus('Ready for next question', '');
+                        stopSpeaking();
+                    }
+                };
+
+                websocket.onerror = (error) => {
+                    console.error('WebSocket error:', error);
+                    reject(error);
+                };
+
+                websocket.onclose = () => {
+                    console.log('WebSocket closed');
+                    if (isRecording) {
+                        stopRecording();
+                    }
+                };
+            });
+        }
+
+        async function startRecording() {
+            try {
+                await connectWebSocket();
+
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: {
+                        sampleRate: 16000,
+                        channelCount: 1,
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    } 
+                });
+
+                audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+                const source = audioContext.createMediaStreamSource(stream);
+                processor = audioContext.createScriptProcessor(4096, 1, 1);
+                
+                source.connect(processor);
+                processor.connect(audioContext.destination);
+
+                processor.onaudioprocess = (e) => {
+                    if (websocket && websocket.readyState === WebSocket.OPEN) {
+                        const inputData = e.inputBuffer.getChannelData(0);
+                        const outputData = new Int16Array(inputData.length);
+                        
+                        for (let i = 0; i < inputData.length; i++) {
+                            outputData[i] = Math.max(-32768, Math.min(32767, inputData[i] * 32768));
+                        }
+                        
+                        websocket.send(outputData.buffer);
+                    }
+                };
+
+                isRecording = true;
+                micButton.classList.add('recording');
+                updateStatus('🎤 Listening... (Click mic again to stop)', 'listening');
+                console.log('✅ Recording started');
+
+            } catch (error) {
+                console.error('Error starting recording:', error);
+                alert('Could not access microphone. Please grant permission and try again.');
+                stopRecording();
+            }
+        }
+
+        function stopRecording() {
+            isRecording = false;
+            micButton.classList.remove('recording');
+            updateStatus('Processing your question...', 'processing');
+
+            if (processor) {
+                processor.disconnect();
+                processor = null;
+            }
+
+            if (audioContext) {
+                audioContext.close();
+                audioContext = null;
+            }
+
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+        }
+
+        function sendTextMessage() {
+            const text = textInput.value.trim();
+            if (!text) return;
+
+            textInput.value = '';
+
+            if (!websocket || websocket.readyState !== WebSocket.OPEN) {
+                connectWebSocket().then(() => {
+                    websocket.send(JSON.stringify({
+                        type: 'text_message',
+                        text: text
+                    }));
+                });
+            } else {
+                websocket.send(JSON.stringify({
+                    type: 'text_message',
+                    text: text
+                }));
+            }
+        }
+
+        micButton.addEventListener('click', () => {
+            if (isRecording) {
+                stopRecording();
+            } else {
+                stopSpeaking();
+                startRecording();
+            }
+        });
+
+        sendButton.addEventListener('click', sendTextMessage);
+
+        textInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendTextMessage();
+            }
+        });
+
+        clearButton.addEventListener('click', () => {
+            chatArea.innerHTML = '<div class="assistant-message">Chat cleared! Ready for your next question.</div>';
+            currentInterimElement = null;
+            hideTypingIndicator();
+            stopSpeaking();
+            
+            if (websocket && websocket.readyState === WebSocket.OPEN) {
+                websocket.send(JSON.stringify({
+                    type: 'clear_history'
+                }));
+            }
+            
+            updateStatus('Type a question or click the mic to speak', '');
+        });
+
+        textInput.focus();
+    </script>
+</body>
+</html>
