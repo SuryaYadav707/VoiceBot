@@ -293,7 +293,7 @@
     <div class="container">
         <div class="header">
             <div>
-                <h1>Voice Bot</h1>
+                <h1>🎙️ Interview Voice Bot</h1>
                 <div class="header-info">Ask me anything about my background and experience</div>
             </div>
             <button class="clear-button" id="clearButton">Clear Chat</button>
@@ -496,10 +496,16 @@
 
         function connectWebSocket() {
             return new Promise((resolve, reject) => {
-                websocket = new WebSocket(`ws://localhost:8000/ws/voice-bot/${sessionId}`);
+                // Detect if we're on Render or localhost
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const host = window.location.host; // Gets domain:port
+                const wsUrl = `${protocol}//${host}/ws/voice-bot/${sessionId}`;
+                
+                console.log('🔌 Connecting to:', wsUrl);
+                websocket = new WebSocket(wsUrl);
                 
                 websocket.onopen = () => {
-                    console.log('✅ WebSocket connected');
+                    console.log('✅ WebSocket connected to', wsUrl);
                     resolve();
                 };
 
