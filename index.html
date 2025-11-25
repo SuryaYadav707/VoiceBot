@@ -352,9 +352,13 @@
         let displayedText = '';
         let textQueue = [];
         let displayInterval = null;
+        let shouldSendAudio = true; // Control whether to send audio to backend
+        let botSpeakingStarted = false; // Track if bot has started speaking
+        let speechQueue = []; // Queue of sentences to speak
+        let isSpeechQueueActive = false; // Track if we're processing the queue
 
         function displayTextWordByWord() {
-            if (displayInterval) return; // Already displaying
+            if (displayInterval) return;
             
             displayInterval = setInterval(() => {
                 if (textQueue.length > 0) {
@@ -366,24 +370,34 @@
                         chatArea.scrollTop = chatArea.scrollHeight;
                     }
                 } else if (!isSpeaking && textQueue.length === 0) {
-                    // Stop displaying when speech is done and queue is empty
                     clearInterval(displayInterval);
                     displayInterval = null;
                 }
-            }, 80); // Display a word every 80ms
+            }, 80);
         }
 
-        function speakSentence(text) {
-            if (!text.trim()) return;
+        function processSpeechQueue() {
+            if (isSpeechQueueActive || speechQueue.length === 0) return;
+            
+            isSpeechQueueActive = true;
+            const text = speechQueue.shift();
+            
+            if (!text.trim()) {
+                isSpeechQueueActive = false;
+                processSpeechQueue(); // Try next in queue
+                return;
+            }
+            
+            // CRITICAL: Ensure audio is disabled before speaking
+            shouldSendAudio = false;
+            
+            // Mark that bot has started speaking
+            if (!botSpeakingStarted) {
+                botSpeakingStarted = true;
+                console.log('🔇 Audio sending DISABLED - Bot speaking');
+            }
             
             isSpeaking = true;
-            
-            // Split text into words and add to display queue
-            const words = text.split(/(\s+)/); // Keep spaces
-            textQueue.push(...words);
-            
-            // Start displaying if not already
-            displayTextWordByWord();
             
             currentUtterance = new SpeechSynthesisUtterance(text);
             currentUtterance.rate = 1.0;
@@ -392,55 +406,87 @@
             
             currentUtterance.onend = () => {
                 isSpeaking = false;
-                if (textQueue.length === 0 && !sentenceBuffer.trim()) {
-                    updateStatus('Type a question or click the mic to speak', '');
+                isSpeechQueueActive = false;
+                
+                // Check if there are more sentences in queue
+                if (speechQueue.length > 0) {
+                    // More to speak, keep audio disabled
+                    processSpeechQueue();
+                } else {
+                    // ALL sentences done, re-enable audio after longer delay
+                    setTimeout(() => {
+                        if (isRecording) {
+                            shouldSendAudio = true;
+                            botSpeakingStarted = false;
+                            console.log('🎤 Audio sending ENABLED - Bot completely finished');
+                        }
+                    }, 1000); // Increased to 1 second for safety
+                    
+                    updateStatus(isRecording ? '🎤 Listening...' : 'Type a question or click the mic to speak', isRecording ? 'listening' : '');
                 }
             };
             
             currentUtterance.onerror = () => {
                 isSpeaking = false;
-                if (textQueue.length === 0 && !sentenceBuffer.trim()) {
-                    updateStatus('Type a question or click the mic to speak', '');
+                isSpeechQueueActive = false;
+                
+                if (isRecording) {
+                    shouldSendAudio = true;
+                    botSpeakingStarted = false;
                 }
+                
+                updateStatus(isRecording ? '🎤 Listening...' : 'Type a question or click the mic to speak', isRecording ? 'listening' : '');
             };
             
             synth.speak(currentUtterance);
             updateStatus('🔊 Speaking...', 'speaking');
         }
 
+        function speakSentence(text) {
+            if (!text.trim()) return;
+            
+            // Add to queue and start processing
+            speechQueue.push(text);
+            processSpeechQueue();
+        }
+
         function bufferAndSpeak(chunk) {
-            // Add to full response text
+            // Add to full response text for tracking
             fullResponseText += chunk;
             
-            // Create message element if not exists
+            // Create or update the message display
             if (!currentAssistantMessage) {
                 currentAssistantMessage = addMessage('', 'assistant');
+                displayedText = ''; // Reset displayed text for new message
             }
             
-            // Add chunk to speech buffer
+            // Add chunk to displayed text
+            displayedText += chunk;
+            
+            // Update the message element directly (no word-by-word here)
+            currentAssistantMessage.textContent = displayedText;
+            chatArea.scrollTop = chatArea.scrollHeight;
+            
+            // Handle speech buffering
             sentenceBuffer += chunk;
             
-            // Clear existing timeout
             if (bufferTimeout) {
                 clearTimeout(bufferTimeout);
             }
             
-            // Check if we have a complete sentence (ends with . ! ? or has multiple sentences)
             const sentenceEnders = /[.!?]\s*$/;
             
             if (sentenceEnders.test(sentenceBuffer.trim())) {
-                // We have a complete sentence, speak it
                 const toSpeak = sentenceBuffer.trim();
                 sentenceBuffer = '';
                 speakSentence(toSpeak);
             } else {
-                // Wait a bit more for the sentence to complete
                 bufferTimeout = setTimeout(() => {
                     if (sentenceBuffer.trim()) {
                         speakSentence(sentenceBuffer.trim());
                         sentenceBuffer = '';
                     }
-                }, 800); // Wait 800ms for more chunks
+                }, 800);
             }
         }
 
@@ -451,7 +497,16 @@
             fullResponseText = '';
             displayedText = '';
             textQueue = [];
+            speechQueue = []; // Clear speech queue
+            isSpeechQueueActive = false;
+            botSpeakingStarted = false;
             currentAssistantMessage = null;
+            
+            // Re-enable audio if mic is still recording
+            if (isRecording) {
+                shouldSendAudio = true;
+                console.log('🎤 Audio sending re-enabled (manual stop)');
+            }
             
             if (bufferTimeout) {
                 clearTimeout(bufferTimeout);
@@ -528,7 +583,10 @@
                         addMessage(data.text, 'user');
                         showTypingIndicator();
                         updateStatus('🤔 Thinking...', 'processing');
-                        stopSpeaking();
+                        
+                        // IMMEDIATELY disable audio when user message is processed
+                        shouldSendAudio = false;
+                        console.log('🔇 Audio DISABLED - Waiting for bot response');
                         
                         // Reset for new response
                         fullResponseText = '';
@@ -537,6 +595,10 @@
                     } 
                     else if (data.type === 'assistant_chunk') {
                         hideTypingIndicator();
+                        
+                        // Make sure audio is disabled during response
+                        shouldSendAudio = false;
+                        
                         bufferAndSpeak(data.text);
                     } 
                     else if (data.type === 'assistant_complete') {
@@ -548,14 +610,12 @@
                             sentenceBuffer = '';
                         }
                         
-                        // Wait for all text to be displayed before resetting
-                        const checkComplete = setInterval(() => {
-                            if (textQueue.length === 0 && !isSpeaking) {
-                                clearInterval(checkComplete);
-                                fullResponseText = '';
-                                displayedText = '';
-                                currentAssistantMessage = null;
-                            }
+                        // Don't add message again - it's already displayed!
+                        // Just reset the tracking variables
+                        setTimeout(() => {
+                            fullResponseText = '';
+                            displayedText = '';
+                            currentAssistantMessage = null;
                         }, 100);
                     }
                     else if (data.type === 'error') {
@@ -583,6 +643,9 @@
 
         async function startRecording() {
             try {
+                // Stop any bot speech before starting to record
+                stopSpeaking();
+                
                 await connectWebSocket();
 
                 stream = await navigator.mediaDevices.getUserMedia({ 
@@ -603,7 +666,8 @@
                 processor.connect(audioContext.destination);
 
                 processor.onaudioprocess = (e) => {
-                    if (websocket && websocket.readyState === WebSocket.OPEN) {
+                    // Only send audio to backend when shouldSendAudio is true
+                    if (websocket && websocket.readyState === WebSocket.OPEN && shouldSendAudio) {
                         const inputData = e.inputBuffer.getChannelData(0);
                         const outputData = new Int16Array(inputData.length);
                         
@@ -613,6 +677,7 @@
                         
                         websocket.send(outputData.buffer);
                     }
+                    // When shouldSendAudio is false, audio is captured but NOT sent (silent drop)
                 };
 
                 isRecording = true;
@@ -629,8 +694,9 @@
 
         function stopRecording() {
             isRecording = false;
+            shouldSendAudio = false;
             micButton.classList.remove('recording');
-            updateStatus('Processing your question...', 'processing');
+            updateStatus('Microphone stopped', '');
 
             if (processor) {
                 processor.disconnect();
@@ -646,6 +712,8 @@
                 stream.getTracks().forEach(track => track.stop());
                 stream = null;
             }
+            
+            console.log('🔴 Continuous listening stopped');
         }
 
         function sendTextMessage() {
@@ -673,7 +741,6 @@
             if (isRecording) {
                 stopRecording();
             } else {
-                stopSpeaking();
                 startRecording();
             }
         });
